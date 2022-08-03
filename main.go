@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 )
 
 
@@ -30,8 +31,13 @@ type IPResponse struct {
 func main() {
 	http.HandleFunc("/", healthCheck)
 	http.HandleFunc("/analytics", handleAnalytics)
-	log.Println("Server Running on Port 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Println("Server Running on Port " + port)
+	
+	log.Fatal(http.ListenAndServe(":" + port, nil))
 }
 
 
