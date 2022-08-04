@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 )
 
 
@@ -46,31 +47,30 @@ var knownIps = map[string]string{
 
 func main() {
 	godotenv.Load()
-	http.HandleFunc("/", healthCheck)
-	http.HandleFunc("/analytics", handleAnalytics)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", healthCheck)
+	mux.HandleFunc("/analytics", handleAnalytics)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 	log.Println("Server Running on Port " + port)
 	
-	log.Fatal(http.ListenAndServe(":" + port, nil))
+	log.Fatal(http.ListenAndServe(":" + port, cors.Default().Handler(mux)))
 }
 
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	fmt.Fprint(w, "Server Running successfully")
 }
 
 
 func handleAnalytics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Type", "application/json")
 	if r.Method != "POST" {
 		http.Error(w, "This endpoint expects a post request", http.StatusBadRequest)
 		return
 	}
-	// w.Header().Add("Content-Type", "application/json")
 	decoder := json.NewDecoder(r.Body)
 	var action ActionParams
 	err := decoder.Decode(&action)
