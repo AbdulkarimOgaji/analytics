@@ -7,8 +7,11 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/smtp"
 	"os"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 
@@ -22,7 +25,6 @@ type IPResponse struct {
 	Org 				string `json:"org"`
 	As 					string `json:"as"`
 	Query 			string `json:"query"`
-	IP 					net.IP `json:"ip"`
 }
 
 type ActionParams struct {
@@ -43,6 +45,7 @@ var knownIps = map[string]string{
 
 
 func main() {
+	godotenv.Load()
 	http.HandleFunc("/", healthCheck)
 	http.HandleFunc("/analytics", handleAnalytics)
 	port := os.Getenv("PORT")
@@ -92,19 +95,19 @@ func handleAnalytics(w http.ResponseWriter, r *http.Request) {
 
 	var jsonResp IPResponse
 	err = decoder.Decode(&jsonResp)
-	jsonResp.IP = ip
 
-
-	storeAnalytics(jsonResp, action)
 	if err != nil {
 		fmt.Fprintf(w, "Failed to decode response" + err.Error())
 		return
 	}
+
+	storeAnalytics(jsonResp, action)
+	
 	b, err := io.ReadAll(resp.Body)
-if err != nil {
-	fmt.Fprint(w, "Failed to read response " + err.Error())
-	return
-}
+	if err != nil {
+		fmt.Fprint(w, "Failed to read response " + err.Error())
+		return
+	}
 	w.Write(b)
 }
 
@@ -137,7 +140,7 @@ func storeAnalytics(d IPResponse, action ActionParams) {
 	reqTime := time.Now()
 	// check if ip is among known ips
 	for ip, own := range knownIps {
-		if d.IP.String() == ip {
+		if d.Query == ip {
 			log.Printf("%q just %q, description:\n %s\n on %q at %q time", own, action.Type, action.Description, action.Source, reqTime)
 			return
 		}
@@ -148,5 +151,34 @@ func storeAnalytics(d IPResponse, action ActionParams) {
 		log.Println("Failed to marshal ", err)
 	}else {
 		log.Println(string(b))
+		// send me an email here
+		err = sendEmail(b)
+		log.Println(err)
 	}
+}
+
+
+func sendEmail(msg []byte) error {
+  from := os.Getenv("MY_FROM_EMAIL")
+  password := os.Getenv("MY_FROM_EMAIL_PASSWORD")
+
+  // Receiver email address.
+  to := []string{
+    os.Getenv("MY_TO_EMAIL"),
+  }
+
+  // smtp server configuration.
+  smtpHost := "smtp.gmail.com"
+  smtpPort := "587"
+  
+  // Authentication.
+  auth := smtp.PlainAuth("", from, password, smtpHost)
+  
+  // Sending email.
+  err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, to, msg)
+  if err != nil {
+    return err
+  }
+  log.Println("Email Sent Successfully!")
+	return nil
 }
