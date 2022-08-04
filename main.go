@@ -59,6 +59,7 @@ func main() {
 
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	fmt.Fprint(w, "Server Running successfully")
 }
 
