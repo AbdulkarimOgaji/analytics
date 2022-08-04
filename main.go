@@ -64,6 +64,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 
 
 func handleAnalytics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method != "POST" {
 		http.Error(w, "This endpoint expects a post request", http.StatusBadRequest)
 		return
