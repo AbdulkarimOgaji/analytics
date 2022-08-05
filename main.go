@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/smtp"
 	"os"
-	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
@@ -26,6 +25,11 @@ type IPResponse struct {
 	Org 				string `json:"org"`
 	As 					string `json:"as"`
 	Query 			string `json:"query"`
+}
+
+type EmailReport struct {
+	IPResponse
+	ActionParams
 }
 
 type ActionParams struct {
@@ -126,8 +130,7 @@ func getIP(r *http.Request) net.IP {
 			userIP = r.Header.Get("X-Real-IP")
 			return net.ParseIP(userIP)
 	} else {
-		ip, port, err := net.SplitHostPort(r.RemoteAddr)
-		log.Println(port)
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		
     if err != nil {
         fmt.Printf("userip: %q is not IP:port", r.RemoteAddr)
@@ -139,16 +142,20 @@ func getIP(r *http.Request) net.IP {
 }
 
 func storeAnalytics(d IPResponse, action ActionParams) {
-	reqTime := time.Now()
 	// check if ip is among known ips
 	for ip, own := range knownIps {
 		if d.Query == ip {
-			log.Printf("%q just %q, description:\n %s\n on %q at %q time", own, action.Type, action.Description, action.Source, reqTime)
+			log.Printf("%q just %q, description: %q", own, action.Type, action.Description,)
 			return
 		}
 	}
 
-	b, err := json.MarshalIndent(d, "", "	")
+	emailJson := EmailReport{
+		d,
+		action,
+	}
+
+	b, err := json.MarshalIndent(emailJson, "", "	")
 	if err != nil {
 		log.Println("Failed to marshal ", err)
 	}else {
